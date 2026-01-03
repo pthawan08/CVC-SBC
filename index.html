@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบชั้นเรียนพระคัมภีร์</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body { font-family: 'Prompt', sans-serif; background-color: #f4f6f9; padding-bottom: 50px; }
+    .nav-pills .nav-link.active { background-color: #2c3e50; }
+    .nav-pills .nav-link { color: #2c3e50; }
+    .card { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .header-title { color: #2c3e50; font-weight: 600; }
+    
+    .check-btn { width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 1px solid #dee2e6; border-radius: 10px; background: white; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .check-btn.checked { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+    .check-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .check-icon { font-size: 1.5rem; color: #ccc; }
+    .check-btn.checked .check-icon { color: #28a745; }
+    .status-text { font-size: 0.8rem; margin-top: 2px; }
+    .badge-subject { font-size: 0.9rem; padding: 8px 12px; border-radius: 20px; font-weight: 500; }
+    .loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; }
+  </style>
+</head>
+<body>
+
+  <div class="loading" id="loading">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+  </div>
+
+  <div class="container mt-4">
+    <h2 class="text-center mb-4 header-title"><i class="fas fa-church me-2"></i>ระบบชั้นเรียนพระคัมภีร์</h2>
+
+    <ul class="nav nav-pills nav-fill mb-4 p-2 bg-white rounded shadow-sm" id="pills-tab" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-register">1. ลงทะเบียน</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-checkin">2. เช็คชื่อเข้าเรียน</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-dashboard" onclick="loadDashboard()">3. ตรวจสอบรายชื่อ</button></li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="tab-register">
+        <div class="card p-4">
+          <h4 class="mb-3">ลงทะเบียนเรียน</h4>
+          <select class="form-select mb-3" id="reg-classname">
+             <option value="" selected disabled>-- เลือกชั้นเรียน --</option>
+             <option value="เข้าใจชีวิตใหม่">เข้าใจชีวิตใหม่</option>
+             <option value="หลักพื้นฐานชีวิตคริสเตียน">หลักพื้นฐานชีวิตคริสเตียน</option>
+             <option value="บทเรียนชีวิตกษัตริย์ดาวิด">บทเรียนชีวิตกษัตริย์ดาวิด</option>
+             <option value="บทเรียนเซลล์">บทเรียนเซลล์</option>
+          </select>
+          <div id="studentList"></div>
+          <button class="btn btn-outline-secondary w-100 mb-3" onclick="addStudentField()">+ เพิ่มรายชื่อ</button>
+          <button class="btn btn-primary w-100" onclick="submitRegistration()">ยืนยันการสมัคร</button>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-checkin">
+        <div class="card p-4">
+          <h4 class="mb-3">เช็คชื่อเข้าเรียน</h4>
+          <div class="alert alert-info border-0 shadow-sm"><i class="fas fa-clock me-2"></i>ระบบเปิดให้เช็คชื่อเฉพาะ <strong>วันอาทิตย์</strong> เท่านั้น</div>
+          <div class="row g-2 mb-3 bg-light p-3 rounded">
+            <div class="col-md-4"><label class="small text-muted">1. วิชา</label><select class="form-select" id="checkin-class" onchange="loadStudentList()"><option value="" disabled selected>-- เลือกวิชา --</option><option value="เข้าใจชีวิตใหม่">เข้าใจชีวิตใหม่</option><option value="หลักพื้นฐานชีวิตคริสเตียน">หลักพื้นฐานชีวิตคริสเตียน</option><option value="บทเรียนชีวิตกษัตริย์ดาวิด">บทเรียนชีวิตกษัตริย์ดาวิด</option><option value="บทเรียนเซลล์">บทเรียนเซลล์</option></select></div>
+            <div class="col-md-4"><label class="small text-muted">2. ครั้งที่</label><select class="form-select" id="checkin-week" onchange="loadStudentList()"><script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">ครั้งที่ ${i}</option>`);</script></select></div>
+            <div class="col-md-4"><label class="small text-muted">3. วันที่</label><input type="date" class="form-control" id="checkin-date"></div>
+          </div>
+          <div id="checkin-list-area"><div class="text-center text-muted py-5">กรุณาเลือกวิชาเพื่อโหลดรายชื่อ</div></div>
+          <div id="submit-zone" class="d-none mt-4 p-3 border-top"><button class="btn btn-success w-100 btn-lg shadow-sm" onclick="submitCheckIn()"><i class="fas fa-save me-2"></i>บันทึกการเช็คชื่อ</button></div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-dashboard">
+        <div class="card p-4">
+          <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
+          <div class="table-responsive"><table id="dashboardTable" class="table table-hover align-middle" style="width:100%"><thead class="table-light"><tr><th>วันที่สมัคร</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>หน่วย</th><th>วิชา</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+  <script>
+    // ==========================================
+    // ⚠️ อย่าลืมใส่ URL ของคุณที่นี่ (ที่ลงท้าย /exec)
+    // ==========================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3gynasppOLen09kQd5j46Lp-ksrfuVIF8QATRfY10aTlO06yZO12fEErn3DYR3As/exec"; 
+
+    // --- รายชื่อหน่วย (แก้ไขตรงนี้ได้เลย) ---
+    const unitOptions = `
+      <option value="" disabled selected>-- เลือกหน่วย --</option>
+      <option value="Beone">Beone</option>
+      <option value="Betwo">Betwo</option>
+      <option value="CL">CL</option>
+      <option value="Ru">Ru</option>
+      <option value="Nu1">Nu1</option>
+      <option value="Nu2">Nu2</option>
+      <option value="Nu3">Nu3</option>
+      <option value="Ns A">Ns A</option>
+      <option value="Ns B">Ns B</option>
+      <option value="NGP A">NGP A</option>
+      <option value="NGP B">NGP B</option>
+      <option value="NGP C">NGP C</option>
+      <option value="V-Gen A1">V-Gen A1</option>
+      <option value="V-Gen A2">V-Gen A2</option>
+      <option value="V-Gen B1">V-Gen B1</option>
+      <option value="V-Gen B2">V-Gen B2</option>
+      <option value="V-Gen B3">V-Gen B3</option>
+      <option value="Acts A">Acts A</option>
+      <option value="Acts B">Acts B</option>
+      <option value="Acts C">Acts C</option>
+      <option value="Acts D">Acts D</option>
+      <option value="เยรูซาเล็ม 1">เยรูซาเล็ม 1</option>
+      <option value="เยรูซาเล็ม 2">เยรูซาเล็ม 2</option>
+      <option value="Power Eagle 1">Power Eagle 1</option>
+      <option value="Power Eagle 2">Power Eagle 2</option>
+      <option value="Power Eagle 3">Power Eagle 3</option>
+      <option value="Happiness 1">Happiness 1</option>
+      <option value="Happiness 2">Happiness 2</option>
+      <option value="Unity 1">Unity 1</option>
+      <option value="Unity 2">Unity 2</option>
+    `;
+
+    // ฟังก์ชันเชื่อมต่อ Google Sheets
+    async function callAPI(payload) {
+      document.getElementById('loading').style.display = 'flex';
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        document.getElementById('loading').style.display = 'none';
+        
+        if (typeof result === 'string' && result.startsWith("Error:")) {
+            throw new Error(result);
+        }
+        return result;
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+        throw error;
+      }
+    }
+
+    // ตั้งค่าวันปัจจุบัน
+    document.getElementById('checkin-date').valueAsDate = new Date();
+
+    // เริ่มต้นให้มีช่องกรอก 1 คน
+    window.onload = function() { addStudentField(); }
+
+    // ฟังก์ชันเพิ่มช่องกรอก (ใช้ตัวแปร unitOptions ที่ประกาศไว้ด้านบน)
+    function addStudentField() {
+      let html = `
+      <div class="student-item mb-3 p-3 border rounded bg-light position-relative">
+         <button onclick="this.parentElement.remove()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2">ลบ</button>
+         <div class="row g-2">
+           <div class="col-6"><input type="text" class="form-control s-name" placeholder="ชื่อ-นามสกุล"></div>
+           <div class="col-6"><input type="text" class="form-control s-nick" placeholder="ชื่อเล่น"></div>
+           <div class="col-12">
+             <select class="form-select s-unit">
+               ${unitOptions}
+             </select>
+           </div>
+         </div>
+      </div>`;
+      document.getElementById('studentList').insertAdjacentHTML('beforeend', html);
+    }
+
+    // ฟังก์ชันส่งข้อมูลลงทะเบียน
+    async function submitRegistration() {
+       let classname = document.getElementById('reg-classname').value;
+       if(!classname) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกชั้นเรียน', 'warning');
+       let students = [];
+       document.querySelectorAll('.student-item').forEach(el => {
+           let name = el.querySelector('.s-name').value;
+           let nick = el.querySelector('.s-nick').value;
+           let unit = el.querySelector('.s-unit').value;
+           if(name && nick && unit) students.push({fullname: name, nickname: nick, unit: unit});
+       });
+       if(students.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูล', 'error');
+
+       const res = await callAPI({ action: 'register', classname: classname, students: students });
+       Swal.fire('สำเร็จ', res, 'success');
+       document.getElementById('studentList').innerHTML = '';
+       addStudentField();
+    }
+
+    // ฟังก์ชันโหลดรายชื่อมาเช็ค
+    async function loadStudentList() {
+      let classname = document.getElementById('checkin-class').value;
+      if(!classname) return;
+      let week = document.getElementById('checkin-week').value;
+
+      const students = await callAPI({ action: 'getStudents', classname: classname });
+      
+      let html = '';
+      if(students.length === 0) {
+           html = '<div class="text-center py-4">ยังไม่มีรายชื่อในวิชานี้</div>';
+           document.getElementById('submit-zone').classList.add('d-none');
+      } else {
+           students.forEach(s => {
+             let savedData = s.attendance[week-1]; 
+             let isChecked = savedData && savedData !== ""; 
+             let statusText = isChecked ? `<span class="text-success">มาเรียนเมื่อ: ${savedData}</span>` : `<span class="text-muted">แตะเพื่อเช็คชื่อ</span>`;
+             let activeClass = isChecked ? "checked" : "";
+             html += `<div class="check-btn ${activeClass}" onclick="toggleCheck(this)" data-row="${s.row}"><div><strong>${s.fullname} (${s.nickname})</strong><br><small class="text-muted">${s.unit}</small><div class="status-text">${statusText}</div></div><i class="fas fa-check-circle check-icon"></i></div>`;
+           });
+           document.getElementById('submit-zone').classList.remove('d-none');
+      }
+      document.getElementById('checkin-list-area').innerHTML = html;
+    }
+
+    function toggleCheck(el) {
+       el.classList.toggle('checked');
+       let statusDiv = el.querySelector('.status-text');
+       if(el.classList.contains('checked')){ statusDiv.innerHTML = '<span class="text-success">รอการบันทึก...</span>'; } 
+       else { statusDiv.innerHTML = '<span class="text-muted">แตะเพื่อเช็คชื่อ</span>'; }
+    }
+
+    // ฟังก์ชันบันทึกการเช็คชื่อ
+    async function submitCheckIn() {
+      let classname = document.getElementById('checkin-class').value;
+      let week = document.getElementById('checkin-week').value;
+      let checkDate = document.getElementById('checkin-date').value;
+      let updates = [];
+      document.querySelectorAll('.check-btn').forEach(el => {
+         updates.push({ row: el.getAttribute('data-row'), status: el.classList.contains('checked') });
+      });
+
+      const res = await callAPI({ action: 'checkin', classname: classname, week: week, date: checkDate, students: updates });
+      Swal.fire('บันทึกแล้ว', res, 'success').then(() => loadStudentList());
+    }
+
+    // ฟังก์ชัน Dashboard
+    let dataTable;
+    async function loadDashboard() {
+      if(dataTable) return;
+      
+      const data = await callAPI({ action: 'dashboard' });
+
+      let html = '';
+      data.forEach(r => {
+           let badge = 'bg-secondary';
+           if(r.classname.includes('เข้าใจ')) badge='bg-success';
+           else if(r.classname.includes('พื้นฐาน')) badge='bg-primary';
+           else if(r.classname.includes('ดาวิด')) badge='bg-warning text-dark';
+           else if(r.classname.includes('เซลล์')) badge='bg-danger';
+           
+           html += `<tr><td><small class="text-muted">${r.timestamp}</small></td><td class="fw-bold">${r.fullname}</td><td>${r.nickname}</td><td>${r.unit}</td><td><span class="badge ${badge} rounded-pill">${r.classname}</span></td></tr>`;
+      });
+      document.querySelector('#dashboardTable tbody').innerHTML = html;
+      if ($.fn.DataTable.isDataTable('#dashboardTable')) dataTable.clear().destroy();
+      dataTable = $('#dashboardTable').DataTable({ language: { search: "ค้นหา:", lengthMenu: "แสดง _MENU_ รายการ" }, order: [[0, 'desc']] });
+    }
+  </script>
+</body>
+</html>
