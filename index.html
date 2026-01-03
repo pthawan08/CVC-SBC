@@ -157,21 +157,32 @@
     // เริ่มต้นให้มีช่องกรอก 1 คน
     window.onload = function() { addStudentField(); }
 
-    // ฟังก์ชันเพิ่มช่องกรอก (ใช้ตัวแปร unitOptions ที่ประกาศไว้ด้านบน)
+   // ฟังก์ชันเพิ่มช่องกรอก (ฉบับจัดหน้าใหม่: ปุ่มลบไม่ลอยบัง)
     function addStudentField() {
       let html = `
-      <div class="student-item mb-3 p-3 border rounded bg-light position-relative">
-         <button onclick="this.parentElement.remove()" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2">ลบ</button>
+      <div class="student-item mb-3 p-3 border rounded bg-light">
+         <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary fw-bold small"><i class="fas fa-user me-1"></i>ข้อมูลผู้เรียน</span>
+            <button type="button" onclick="this.closest('.student-item').remove()" class="btn btn-sm btn-outline-danger bg-white">
+              <i class="fas fa-trash-alt"></i> ลบ
+            </button>
+         </div>
+         
          <div class="row g-2">
-           <div class="col-6"><input type="text" class="form-control s-name" placeholder="ชื่อ-นามสกุล"></div>
-           <div class="col-6"><input type="text" class="form-control s-nick" placeholder="ชื่อเล่น"></div>
+           <div class="col-md-6">
+             <input type="text" class="form-control s-name" placeholder="ชื่อ-นามสกุล" required>
+           </div>
+           <div class="col-md-6">
+             <input type="text" class="form-control s-nick" placeholder="ชื่อเล่น" required>
+           </div>
            <div class="col-12">
-             <select class="form-select s-unit">
+             <select class="form-select s-unit" required>
                ${unitOptions}
              </select>
            </div>
          </div>
       </div>`;
+      
       document.getElementById('studentList').insertAdjacentHTML('beforeend', html);
     }
 
