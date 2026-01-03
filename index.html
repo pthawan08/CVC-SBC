@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body { font-family: 'Prompt', sans-serif; background-color: #f4f6f9; padding-bottom: 50px; }
@@ -77,6 +78,31 @@
       <div class="tab-pane fade" id="tab-dashboard">
         <div class="card p-4">
           <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
+          <div class="tab-pane fade" id="tab-dashboard">
+        <div class="card p-4">
+          <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
+          
+          <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+              <div class="card h-100 border-0 shadow-sm bg-light">
+                <div class="card-body">
+                  <h6 class="text-center text-muted">จำนวนผู้เรียนแยกตามวิชา</h6>
+                  <canvas id="classChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <div class="card h-100 border-0 shadow-sm bg-light">
+                <div class="card-body">
+                  <h6 class="text-center text-muted">จำนวนผู้เรียนแยกตามหน่วย</h6>
+                  <canvas id="unitChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-responsive"><table id="dashboardTable" class="table table-hover align-middle" style="width:100%"><thead class="table-light"><tr><th>วันที่สมัคร</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>หน่วย</th><th>วิชา</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
           <div class="table-responsive"><table id="dashboardTable" class="table table-hover align-middle" style="width:100%"><thead class="table-light"><tr><th>วันที่สมัคร</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>หน่วย</th><th>วิชา</th></tr></thead><tbody></tbody></table></div>
         </div>
       </div>
@@ -92,7 +118,7 @@
     // ==========================================
     // ⚠️ อย่าลืมใส่ URL ของคุณที่นี่ (ที่ลงท้าย /exec)
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3gynasppOLen09kQd5j46Lp-ksrfuVIF8QATRfY10aTlO06yZO12fEErn3DYR3As/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfI1I-9vypMaVXQ4tpdH3mrJ6LmWGoqTDaDYEHGS1QzJeyIjKWjwTF1mNWfechYSy3/exec"; 
 
     // --- รายชื่อหน่วย (แก้ไขตรงนี้ได้เลย) ---
     const unitOptions = `
@@ -253,13 +279,32 @@
 
     // ฟังก์ชัน Dashboard
     let dataTable;
+    // ตัวแปรสำหรับเก็บกราฟ (เพื่อไม่ให้กราฟซ้อนกันเวลาโหลดใหม่)
+    let myClassChart = null;
+    let myUnitChart = null;
+    let dataTable;
+
     async function loadDashboard() {
-      if(dataTable) return;
-      
+      if(dataTable) {
+         // ถ้ามีตารางอยู่แล้ว ให้เคลียร์ค่าทิ้งก่อนโหลดใหม่
+         dataTable.clear().destroy();
+      }
+
+      // เรียกข้อมูลจากหลังบ้าน
       const data = await callAPI({ action: 'dashboard' });
+
+      // --- ส่วนที่ 1: เตรียมข้อมูลทำกราฟ ---
+      let classCount = {};
+      let unitCount = {};
 
       let html = '';
       data.forEach(r => {
+           // นับจำนวนวิชา
+           classCount[r.classname] = (classCount[r.classname] || 0) + 1;
+           // นับจำนวนหน่วย
+           unitCount[r.unit] = (unitCount[r.unit] || 0) + 1;
+
+           // สร้างตาราง html เหมือนเดิม
            let badge = 'bg-secondary';
            if(r.classname.includes('เข้าใจ')) badge='bg-success';
            else if(r.classname.includes('พื้นฐาน')) badge='bg-primary';
@@ -268,8 +313,56 @@
            
            html += `<tr><td><small class="text-muted">${r.timestamp}</small></td><td class="fw-bold">${r.fullname}</td><td>${r.nickname}</td><td>${r.unit}</td><td><span class="badge ${badge} rounded-pill">${r.classname}</span></td></tr>`;
       });
+
+      // --- ส่วนที่ 2: วาดกราฟ ---
+      
+      // ล้างกราฟเก่าก่อน (ถ้ามี)
+      if(myClassChart) myClassChart.destroy();
+      if(myUnitChart) myUnitChart.destroy();
+
+      // เช็คว่ามี Canvas อยู่ไหม (ป้องกัน Error ถ้ายังไม่ได้แก้ HTML)
+      const ctxClassElement = document.getElementById('classChart');
+      const ctxUnitElement = document.getElementById('unitChart');
+
+      if (ctxClassElement && ctxUnitElement) {
+          // กราฟวงกลม (วิชา)
+          const ctxClass = ctxClassElement.getContext('2d');
+          myClassChart = new Chart(ctxClass, {
+              type: 'doughnut',
+              data: {
+                  labels: Object.keys(classCount),
+                  datasets: [{
+                      data: Object.values(classCount),
+                      backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d'],
+                      borderWidth: 1
+                  }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+          });
+
+          // กราฟแท่ง (หน่วย)
+          const ctxUnit = ctxUnitElement.getContext('2d');
+          myUnitChart = new Chart(ctxUnit, {
+              type: 'bar',
+              data: {
+                  labels: Object.keys(unitCount),
+                  datasets: [{
+                      label: 'จำนวนคน',
+                      data: Object.values(unitCount),
+                      backgroundColor: '#17a2b8',
+                      borderRadius: 5
+                  }]
+              },
+              options: { 
+                responsive: true, 
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+              }
+          });
+      }
+
+      // --- ส่วนที่ 3: แสดงตาราง ---
       document.querySelector('#dashboardTable tbody').innerHTML = html;
-      if ($.fn.DataTable.isDataTable('#dashboardTable')) dataTable.clear().destroy();
       dataTable = $('#dashboardTable').DataTable({ language: { search: "ค้นหา:", lengthMenu: "แสดง _MENU_ รายการ" }, order: [[0, 'desc']] });
     }
   </script>
