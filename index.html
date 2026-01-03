@@ -43,6 +43,7 @@
       <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-register">1. ลงทะเบียน</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-checkin">2. เช็คชื่อเข้าเรียน</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-dashboard" onclick="loadDashboard()">3. ตรวจสอบรายชื่อ</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-stats" onclick="loadStats()">4. สถิติการเรียน</button></li>
     </ul>
 
     <div class="tab-content">
@@ -79,27 +80,7 @@
 
       <div class="tab-pane fade" id="tab-dashboard">
         <div class="card p-4">
-          <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
-          
-          <div class="row mb-4">
-            <div class="col-md-6 mb-3">
-              <div class="card h-100 border-0 shadow-sm bg-light">
-                <div class="card-body">
-                  <h6 class="text-center text-muted">จำนวนผู้เรียนแยกตามวิชา</h6>
-                  <canvas id="classChart"></canvas>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6 mb-3">
-              <div class="card h-100 border-0 shadow-sm bg-light">
-                <div class="card-body">
-                  <h6 class="text-center text-muted">จำนวนผู้เรียนแยกตามหน่วย</h6>
-                  <canvas id="unitChart"></canvas>
-                </div>
-              </div>
-            </div>
-          </div>
-
+          <h4 class="mb-3">รายชื่อผู้สมัครเรียนทั้งหมด</h4>
           <div class="table-responsive">
             <table id="dashboardTable" class="table table-hover align-middle" style="width:100%">
               <thead class="table-light">
@@ -114,7 +95,20 @@
               <tbody></tbody>
             </table>
           </div>
+        </div>
+      </div>
 
+      <div class="tab-pane fade" id="tab-stats">
+        <div class="card p-4">
+          <h4 class="mb-3">สถิติการเข้าเรียนรายสัปดาห์</h4>
+          <div class="card h-100 border-0 shadow-sm bg-light">
+            <div class="card-body">
+              <h6 class="text-center text-muted mb-4">แนวโน้มการเข้าเรียน (สัปดาห์ที่ 1-12)</h6>
+              <div style="height: 400px;">
+                <canvas id="weeklyChart"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -128,11 +122,10 @@
 
   <script>
     // ==========================================
-    // ⚠️ URL ของคุณ (ใส่ให้แล้ว)
+    // ⚠️ ใส่ URL ของคุณที่นี่
     // ==========================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfI1I-9vypMaVXQ4tpdH3mrJ6LmWGoqTDaDYEHGS1QzJeyIjKWjwTF1mNWfechYSy3/exec"; 
 
-    // --- รายชื่อหน่วย ---
     const unitOptions = `
       <option value="" disabled selected>-- เลือกหน่วย --</option>
       <option value="Beone">Beone</option>
@@ -167,7 +160,6 @@
       <option value="Unity 2">Unity 2</option>
     `;
 
-    // ฟังก์ชันเชื่อมต่อ Google Sheets
     async function callAPI(payload) {
       document.getElementById('loading').style.display = 'flex';
       try {
@@ -177,10 +169,7 @@
         });
         const result = await response.json();
         document.getElementById('loading').style.display = 'none';
-        
-        if (typeof result === 'string' && result.startsWith("Error:")) {
-            throw new Error(result);
-        }
+        if (typeof result === 'string' && result.startsWith("Error:")) throw new Error(result);
         return result;
       } catch (error) {
         document.getElementById('loading').style.display = 'none';
@@ -189,42 +178,25 @@
       }
     }
 
-    // ตั้งค่าวันปัจจุบัน
     document.getElementById('checkin-date').valueAsDate = new Date();
-
-    // เริ่มต้นให้มีช่องกรอก 1 คน
     window.onload = function() { addStudentField(); }
 
-    // ฟังก์ชันเพิ่มช่องกรอก
     function addStudentField() {
       let html = `
       <div class="student-item mb-3 p-3 border rounded bg-light">
          <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="text-secondary fw-bold small"><i class="fas fa-user me-1"></i>ข้อมูลผู้เรียน</span>
-            <button type="button" onclick="this.closest('.student-item').remove()" class="btn btn-sm btn-outline-danger bg-white">
-              <i class="fas fa-trash-alt"></i> ลบ
-            </button>
+            <button type="button" onclick="this.closest('.student-item').remove()" class="btn btn-sm btn-outline-danger bg-white"><i class="fas fa-trash-alt"></i> ลบ</button>
          </div>
-         
          <div class="row g-2">
-           <div class="col-md-6">
-             <input type="text" class="form-control s-name" placeholder="ชื่อ-นามสกุล" required>
-           </div>
-           <div class="col-md-6">
-             <input type="text" class="form-control s-nick" placeholder="ชื่อเล่น" required>
-           </div>
-           <div class="col-12">
-             <select class="form-select s-unit" required>
-               ${unitOptions}
-             </select>
-           </div>
+           <div class="col-md-6"><input type="text" class="form-control s-name" placeholder="ชื่อ-นามสกุล" required></div>
+           <div class="col-md-6"><input type="text" class="form-control s-nick" placeholder="ชื่อเล่น" required></div>
+           <div class="col-12"><select class="form-select s-unit" required>${unitOptions}</select></div>
          </div>
       </div>`;
-      
       document.getElementById('studentList').insertAdjacentHTML('beforeend', html);
     }
 
-    // ฟังก์ชันส่งข้อมูลลงทะเบียน
     async function submitRegistration() {
        let classname = document.getElementById('reg-classname').value;
        if(!classname) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกชั้นเรียน', 'warning');
@@ -236,21 +208,17 @@
            if(name && nick && unit) students.push({fullname: name, nickname: nick, unit: unit});
        });
        if(students.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูล', 'error');
-
        const res = await callAPI({ action: 'register', classname: classname, students: students });
        Swal.fire('สำเร็จ', res, 'success');
        document.getElementById('studentList').innerHTML = '';
        addStudentField();
     }
 
-    // ฟังก์ชันโหลดรายชื่อมาเช็ค
     async function loadStudentList() {
       let classname = document.getElementById('checkin-class').value;
       if(!classname) return;
       let week = document.getElementById('checkin-week').value;
-
       const students = await callAPI({ action: 'getStudents', classname: classname });
-      
       let html = '';
       if(students.length === 0) {
            html = '<div class="text-center py-4">ยังไม่มีรายชื่อในวิชานี้</div>';
@@ -275,7 +243,6 @@
        else { statusDiv.innerHTML = '<span class="text-muted">แตะเพื่อเช็คชื่อ</span>'; }
     }
 
-    // ฟังก์ชันบันทึกการเช็คชื่อ
     async function submitCheckIn() {
       let classname = document.getElementById('checkin-class').value;
       let week = document.getElementById('checkin-week').value;
@@ -284,91 +251,74 @@
       document.querySelectorAll('.check-btn').forEach(el => {
          updates.push({ row: el.getAttribute('data-row'), status: el.classList.contains('checked') });
       });
-
       const res = await callAPI({ action: 'checkin', classname: classname, week: week, date: checkDate, students: updates });
       Swal.fire('บันทึกแล้ว', res, 'success').then(() => loadStudentList());
     }
 
-    // --- ส่วน Dashboard (แก้ไขตัวแปรซ้ำแล้ว) ---
-    
-    // ประกาศตัวแปร Global ครั้งเดียว
+    // --- ส่วน Dashboard (แสดงแค่ตาราง) ---
     let dataTable;
-    let myClassChart = null;
-    let myUnitChart = null;
-
     async function loadDashboard() {
-      if(dataTable) {
-         dataTable.clear().destroy();
-      }
-
-      // เรียกข้อมูลจากหลังบ้าน
+      if(dataTable) dataTable.clear().destroy();
       const data = await callAPI({ action: 'dashboard' });
-
-      // --- เตรียมข้อมูลกราฟ ---
-      let classCount = {};
-      let unitCount = {};
       let html = '';
-
       data.forEach(r => {
-           // นับจำนวน
-           classCount[r.classname] = (classCount[r.classname] || 0) + 1;
-           unitCount[r.unit] = (unitCount[r.unit] || 0) + 1;
-
-           // สร้างตาราง
            let badge = 'bg-secondary';
            if(r.classname.includes('เข้าใจ')) badge='bg-success';
            else if(r.classname.includes('พื้นฐาน')) badge='bg-primary';
            else if(r.classname.includes('ดาวิด')) badge='bg-warning text-dark';
            else if(r.classname.includes('เซลล์')) badge='bg-danger';
-           
            html += `<tr><td><small class="text-muted">${r.timestamp}</small></td><td class="fw-bold">${r.fullname}</td><td>${r.nickname}</td><td>${r.unit}</td><td><span class="badge ${badge} rounded-pill">${r.classname}</span></td></tr>`;
       });
-
-      // --- วาดกราฟ ---
-      if(myClassChart) myClassChart.destroy();
-      if(myUnitChart) myUnitChart.destroy();
-
-      const ctxClassElement = document.getElementById('classChart');
-      const ctxUnitElement = document.getElementById('unitChart');
-
-      if (ctxClassElement && ctxUnitElement) {
-          // กราฟวงกลม
-          myClassChart = new Chart(ctxClassElement.getContext('2d'), {
-              type: 'doughnut',
-              data: {
-                  labels: Object.keys(classCount),
-                  datasets: [{
-                      data: Object.values(classCount),
-                      backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d'],
-                      borderWidth: 1
-                  }]
-              },
-              options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-          });
-
-          // กราฟแท่ง
-          myUnitChart = new Chart(ctxUnitElement.getContext('2d'), {
-              type: 'bar',
-              data: {
-                  labels: Object.keys(unitCount),
-                  datasets: [{
-                      label: 'จำนวนคน',
-                      data: Object.values(unitCount),
-                      backgroundColor: '#17a2b8',
-                      borderRadius: 5
-                  }]
-              },
-              options: { 
-                responsive: true, 
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-              }
-          });
-      }
-
-      // --- แสดงตาราง ---
       document.querySelector('#dashboardTable tbody').innerHTML = html;
       dataTable = $('#dashboardTable').DataTable({ language: { search: "ค้นหา:", lengthMenu: "แสดง _MENU_ รายการ" }, order: [[0, 'desc']] });
+    }
+
+    // --- ส่วน Statistics (กราฟใหม่) ---
+    let myWeeklyChart = null;
+    async function loadStats() {
+      const data = await callAPI({ action: 'stats' });
+      
+      if(myWeeklyChart) myWeeklyChart.destroy();
+
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      myWeeklyChart = new Chart(ctx, {
+          type: 'line', // กราฟเส้น
+          data: {
+              labels: ['ครั้งที่ 1', 'ครั้งที่ 2', 'ครั้งที่ 3', 'ครั้งที่ 4', 'ครั้งที่ 5', 'ครั้งที่ 6', 'ครั้งที่ 7', 'ครั้งที่ 8', 'ครั้งที่ 9', 'ครั้งที่ 10', 'ครั้งที่ 11', 'ครั้งที่ 12'],
+              datasets: [
+                {
+                   label: 'เข้าใจชีวิตใหม่',
+                   data: data['เข้าใจชีวิตใหม่'],
+                   borderColor: '#28a745', // สีเขียว
+                   tension: 0.3
+                },
+                {
+                   label: 'พื้นฐานชีวิต',
+                   data: data['หลักพื้นฐานชีวิตคริสเตียน'],
+                   borderColor: '#007bff', // สีฟ้า
+                   tension: 0.3
+                },
+                {
+                   label: 'กษัตริย์ดาวิด',
+                   data: data['บทเรียนชีวิตกษัตริย์ดาวิด'],
+                   borderColor: '#ffc107', // สีเหลือง
+                   tension: 0.3
+                },
+                {
+                   label: 'บทเรียนเซลล์',
+                   data: data['บทเรียนเซลล์'],
+                   borderColor: '#dc3545', // สีแดง
+                   tension: 0.3
+                }
+              ]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { position: 'bottom' } },
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }
+      });
     }
   </script>
 </body>
