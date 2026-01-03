@@ -9,6 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+  
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -45,6 +46,7 @@
     </ul>
 
     <div class="tab-content">
+      
       <div class="tab-pane fade show active" id="tab-register">
         <div class="card p-4">
           <h4 class="mb-3">ลงทะเบียนเรียน</h4>
@@ -78,9 +80,6 @@
       <div class="tab-pane fade" id="tab-dashboard">
         <div class="card p-4">
           <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
-          <div class="tab-pane fade" id="tab-dashboard">
-        <div class="card p-4">
-          <h4 class="mb-3">ตรวจสอบรายชื่อ</h4>
           
           <div class="row mb-4">
             <div class="col-md-6 mb-3">
@@ -100,12 +99,25 @@
               </div>
             </div>
           </div>
-          <div class="table-responsive"><table id="dashboardTable" class="table table-hover align-middle" style="width:100%"><thead class="table-light"><tr><th>วันที่สมัคร</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>หน่วย</th><th>วิชา</th></tr></thead><tbody></tbody></table></div>
+
+          <div class="table-responsive">
+            <table id="dashboardTable" class="table table-hover align-middle" style="width:100%">
+              <thead class="table-light">
+                <tr>
+                  <th>วันที่สมัคร</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>ชื่อเล่น</th>
+                  <th>หน่วย</th>
+                  <th>วิชา</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
         </div>
       </div>
-          <div class="table-responsive"><table id="dashboardTable" class="table table-hover align-middle" style="width:100%"><thead class="table-light"><tr><th>วันที่สมัคร</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>หน่วย</th><th>วิชา</th></tr></thead><tbody></tbody></table></div>
-        </div>
-      </div>
+
     </div>
   </div>
 
@@ -116,11 +128,11 @@
 
   <script>
     // ==========================================
-    // ⚠️ อย่าลืมใส่ URL ของคุณที่นี่ (ที่ลงท้าย /exec)
+    // ⚠️ URL ของคุณ (ใส่ให้แล้ว)
     // ==========================================
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfI1I-9vypMaVXQ4tpdH3mrJ6LmWGoqTDaDYEHGS1QzJeyIjKWjwTF1mNWfechYSy3/exec"; 
 
-    // --- รายชื่อหน่วย (แก้ไขตรงนี้ได้เลย) ---
+    // --- รายชื่อหน่วย ---
     const unitOptions = `
       <option value="" disabled selected>-- เลือกหน่วย --</option>
       <option value="Beone">Beone</option>
@@ -183,7 +195,7 @@
     // เริ่มต้นให้มีช่องกรอก 1 คน
     window.onload = function() { addStudentField(); }
 
-   // ฟังก์ชันเพิ่มช่องกรอก (ฉบับจัดหน้าใหม่: ปุ่มลบไม่ลอยบัง)
+    // ฟังก์ชันเพิ่มช่องกรอก
     function addStudentField() {
       let html = `
       <div class="student-item mb-3 p-3 border rounded bg-light">
@@ -277,34 +289,32 @@
       Swal.fire('บันทึกแล้ว', res, 'success').then(() => loadStudentList());
     }
 
-    // ฟังก์ชัน Dashboard
+    // --- ส่วน Dashboard (แก้ไขตัวแปรซ้ำแล้ว) ---
+    
+    // ประกาศตัวแปร Global ครั้งเดียว
     let dataTable;
-    // ตัวแปรสำหรับเก็บกราฟ (เพื่อไม่ให้กราฟซ้อนกันเวลาโหลดใหม่)
     let myClassChart = null;
     let myUnitChart = null;
-    let dataTable;
 
     async function loadDashboard() {
       if(dataTable) {
-         // ถ้ามีตารางอยู่แล้ว ให้เคลียร์ค่าทิ้งก่อนโหลดใหม่
          dataTable.clear().destroy();
       }
 
       // เรียกข้อมูลจากหลังบ้าน
       const data = await callAPI({ action: 'dashboard' });
 
-      // --- ส่วนที่ 1: เตรียมข้อมูลทำกราฟ ---
+      // --- เตรียมข้อมูลกราฟ ---
       let classCount = {};
       let unitCount = {};
-
       let html = '';
+
       data.forEach(r => {
-           // นับจำนวนวิชา
+           // นับจำนวน
            classCount[r.classname] = (classCount[r.classname] || 0) + 1;
-           // นับจำนวนหน่วย
            unitCount[r.unit] = (unitCount[r.unit] || 0) + 1;
 
-           // สร้างตาราง html เหมือนเดิม
+           // สร้างตาราง
            let badge = 'bg-secondary';
            if(r.classname.includes('เข้าใจ')) badge='bg-success';
            else if(r.classname.includes('พื้นฐาน')) badge='bg-primary';
@@ -314,20 +324,16 @@
            html += `<tr><td><small class="text-muted">${r.timestamp}</small></td><td class="fw-bold">${r.fullname}</td><td>${r.nickname}</td><td>${r.unit}</td><td><span class="badge ${badge} rounded-pill">${r.classname}</span></td></tr>`;
       });
 
-      // --- ส่วนที่ 2: วาดกราฟ ---
-      
-      // ล้างกราฟเก่าก่อน (ถ้ามี)
+      // --- วาดกราฟ ---
       if(myClassChart) myClassChart.destroy();
       if(myUnitChart) myUnitChart.destroy();
 
-      // เช็คว่ามี Canvas อยู่ไหม (ป้องกัน Error ถ้ายังไม่ได้แก้ HTML)
       const ctxClassElement = document.getElementById('classChart');
       const ctxUnitElement = document.getElementById('unitChart');
 
       if (ctxClassElement && ctxUnitElement) {
-          // กราฟวงกลม (วิชา)
-          const ctxClass = ctxClassElement.getContext('2d');
-          myClassChart = new Chart(ctxClass, {
+          // กราฟวงกลม
+          myClassChart = new Chart(ctxClassElement.getContext('2d'), {
               type: 'doughnut',
               data: {
                   labels: Object.keys(classCount),
@@ -336,13 +342,12 @@
                       backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d'],
                       borderWidth: 1
                   }]
-          },
-          options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+              },
+              options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
           });
 
-          // กราฟแท่ง (หน่วย)
-          const ctxUnit = ctxUnitElement.getContext('2d');
-          myUnitChart = new Chart(ctxUnit, {
+          // กราฟแท่ง
+          myUnitChart = new Chart(ctxUnitElement.getContext('2d'), {
               type: 'bar',
               data: {
                   labels: Object.keys(unitCount),
@@ -361,7 +366,7 @@
           });
       }
 
-      // --- ส่วนที่ 3: แสดงตาราง ---
+      // --- แสดงตาราง ---
       document.querySelector('#dashboardTable tbody').innerHTML = html;
       dataTable = $('#dashboardTable').DataTable({ language: { search: "ค้นหา:", lengthMenu: "แสดง _MENU_ รายการ" }, order: [[0, 'desc']] });
     }
