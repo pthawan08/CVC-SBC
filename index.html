@@ -26,12 +26,12 @@
     .check-btn { width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 1px solid #dee2e6; border-radius: 10px; background: white; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
     .check-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     
-    /* ปุ่มตอนติ๊กถูก (สีเขียว) */
+    /* สีปุ่มตอนติ๊กถูก (เขียว) */
     .check-btn.checked { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
     .check-icon { font-size: 1.5rem; color: #ccc; }
     .check-btn.checked .check-icon { color: #28a745; }
 
-    /* ปุ่มที่ถูกล็อค (สีเทา) */
+    /* สีปุ่มที่ถูกล็อค (เทา + แม่กุญแจ) */
     .check-btn.locked { background-color: #f8f9fa; border-color: #e9ecef; cursor: default; opacity: 0.8; }
     .check-btn.locked:hover { transform: none; box-shadow: none; }
     .check-btn.locked .check-icon { color: #198754; }
@@ -144,9 +144,9 @@
 
   <script>
     // ==========================================
-    // URL ของคุณ
+    // ✅ อัปเดต URL เป็นตัวที่ใช้งานได้จริงของคุณแล้ว!
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6Qlw8WfqMpKOX-O3B0khFC0Xyfy5uXkZcdLioqcdabNZSOe2E__mLE2xcdgtoN2v_/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4n7OCJmVxJNpA54zuePnnG4ct45Z0YnGaLJJGJzgHpa5Pv5wS9od5QR53sgu7Tstm/exec"; 
     
     // รายชื่อหน่วย (Dropdown)
     const unitOptions = `
@@ -183,17 +183,13 @@
       <option value="Unity 2">Unity 2</option>
     `;
 
-    // --- เริ่มต้นการทำงาน (ปลอดภัยกว่าเดิม) ---
+    // --- เริ่มต้นการทำงาน ---
     window.addEventListener('load', function() {
-        // ตั้งค่าวันที่ปัจจุบัน
         const dateEl = document.getElementById('checkin-date');
         if(dateEl) dateEl.valueAsDate = new Date();
-        
-        // สร้างช่องกรอกชื่อช่องแรก
         addStudentField();
     });
 
-    // ฟังก์ชันเชื่อมต่อ Google Script
     async function callAPI(payload) {
       document.getElementById('loading').style.display = 'flex';
       try {
@@ -212,7 +208,7 @@
       }
     }
 
-    // ฟังก์ชันสร้างช่องกรอกรายชื่อ
+    // สร้างช่องกรอกรายชื่อ
     function addStudentField() {
       let html = `
       <div class="student-item mb-3 p-3 border rounded bg-light">
@@ -240,7 +236,6 @@
       if(list) list.insertAdjacentHTML('beforeend', html);
     }
 
-    // ฟังก์ชันเปิด/ปิดช่องกรอกสถานะอื่นๆ
     function toggleOtherInput(selectElement) {
         let input = selectElement.parentElement.querySelector('.s-status-other');
         if (selectElement.value === 'Other') {
@@ -250,7 +245,6 @@
         }
     }
 
-    // ฟังก์ชันกดส่งข้อมูลลงทะเบียน
     async function submitRegistration() {
        let classname = document.getElementById('reg-classname').value;
        if(!classname) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกชั้นเรียน', 'warning');
@@ -264,4 +258,156 @@
            let statusOther = el.querySelector('.s-status-other').value;
            let finalStatus = statusSelect === 'Other' ? statusOther : statusSelect;
            if(name && nick && unit && finalStatus) {
-               students.
+               students.push({ fullname: name, nickname: nick, unit: unit, status: finalStatus });
+           } else { isValid = false; }
+       });
+       if(!isValid || students.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบ (รวมถึงสถานะ)', 'error');
+       const res = await callAPI({ action: 'register', classname: classname, students: students });
+       Swal.fire('สำเร็จ', res, 'success');
+       document.getElementById('studentList').innerHTML = '';
+       addStudentField();
+    }
+
+    // --- ส่วนเช็คชื่อ (โหลดข้อมูล + ล็อค + ค้นหา) ---
+    async function loadStudentList() {
+      let classname = document.getElementById('checkin-class').value;
+      if(!classname) return;
+      let week = document.getElementById('checkin-week').value;
+      const students = await callAPI({ action: 'getStudents', classname: classname });
+      
+      let html = '';
+      if(students.length === 0) {
+           html = '<div class="text-center py-4">ยังไม่มีรายชื่อในวิชานี้</div>';
+           document.getElementById('submit-zone').classList.add('d-none');
+      } else {
+           students.forEach(s => {
+             let savedData = s.attendance[week-1]; 
+             let isChecked = savedData && savedData !== ""; 
+             
+             let activeClass = "";
+             let clickAction = "";
+             let statusText = "";
+             let iconClass = "fa-check-circle";
+
+             if (isChecked) {
+                 activeClass = "checked locked";
+                 clickAction = ""; // ล็อคกดไม่ได้
+                 statusText = `<span class="text-success fw-bold"><i class="fas fa-lock me-1"></i>บันทึกแล้ว: ${savedData}</span>`;
+                 iconClass = "fa-lock"; 
+             } else {
+                 activeClass = "";
+                 clickAction = `onclick="toggleCheck(this)"`;
+                 statusText = `<span class="text-muted">แตะเพื่อเช็คชื่อ</span>`;
+             }
+
+             html += `<div class="check-btn ${activeClass}" ${clickAction} data-row="${s.row}" data-name="${s.fullname} ${s.nickname}">
+               <div>
+                 <strong>${s.fullname} (${s.nickname})</strong><br>
+                 <small class="text-muted">${s.unit}</small> 
+                 <span class="badge bg-light text-dark ms-1 border">${s.status || '-'}</span>
+                 <div class="status-text">${statusText}</div>
+               </div>
+               <i class="fas ${iconClass} check-icon"></i>
+             </div>`;
+           });
+           document.getElementById('submit-zone').classList.remove('d-none');
+      }
+      document.getElementById('checkin-list-area').innerHTML = html;
+      document.getElementById('student-search').value = ''; 
+    }
+
+    // ฟังก์ชันค้นหา (Search)
+    function filterStudents() {
+        let input = document.getElementById('student-search');
+        let filter = input.value.toLowerCase();
+        let items = document.querySelectorAll('.check-btn');
+        items.forEach(item => {
+            let name = item.getAttribute('data-name').toLowerCase();
+            if (name.includes(filter)) item.classList.remove('d-none');
+            else item.classList.add('d-none');
+        });
+    }
+
+    // ฟังก์ชันกดติ๊กถูก
+    function toggleCheck(el) {
+       if(el.classList.contains('locked')) return; // ถ้าล็อคอยู่ ห้ามกด
+       el.classList.toggle('checked');
+       let statusDiv = el.querySelector('.status-text');
+       if(el.classList.contains('checked')){ statusDiv.innerHTML = '<span class="text-success">รอการบันทึก...</span>'; } 
+       else { statusDiv.innerHTML = '<span class="text-muted">แตะเพื่อเช็คชื่อ</span>'; }
+    }
+
+    // ฟังก์ชันล้างค่า (Reset)
+    function clearAllChecks() {
+       document.querySelectorAll('.check-btn.checked:not(.locked)').forEach(el => {
+           toggleCheck(el);
+       });
+       const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+       toast.fire({ icon: 'info', title: 'ล้างค่าที่เลือกแล้ว' });
+    }
+
+    // ฟังก์ชันบันทึก
+    async function submitCheckIn() {
+      let classname = document.getElementById('checkin-class').value;
+      let week = document.getElementById('checkin-week').value;
+      let checkDate = document.getElementById('checkin-date').value;
+      let updates = [];
+      document.querySelectorAll('.check-btn').forEach(el => {
+         // ส่งเฉพาะปุ่มที่ไม่ได้ล็อค
+         if (!el.classList.contains('locked')) {
+             updates.push({ row: el.getAttribute('data-row'), status: el.classList.contains('checked') });
+         }
+      });
+      if(updates.length === 0) return Swal.fire('ไม่มีการเปลี่ยนแปลง', 'คุณยังไม่ได้เลือกใครเพิ่มครับ', 'info');
+      const res = await callAPI({ action: 'checkin', classname: classname, week: week, date: checkDate, students: updates });
+      Swal.fire('บันทึกแล้ว', res, 'success').then(() => loadStudentList());
+    }
+
+    // --- Dashboard ---
+    let dataTable;
+    async function loadDashboard() {
+      if(dataTable) dataTable.clear().destroy();
+      const data = await callAPI({ action: 'dashboard' });
+      let html = '';
+      data.forEach(r => {
+           let badge = 'bg-secondary';
+           if(r.classname.includes('เข้าใจ')) badge='bg-success';
+           else if(r.classname.includes('พื้นฐาน')) badge='bg-primary';
+           else if(r.classname.includes('ดาวิด')) badge='bg-warning text-dark';
+           else if(r.classname.includes('เซลล์')) badge='bg-danger';
+           html += `<tr>
+             <td><small class="text-muted">${r.timestamp}</small></td>
+             <td class="fw-bold">${r.fullname}</td>
+             <td>${r.nickname}</td>
+             <td>${r.unit}</td>
+             <td><span class="badge bg-info text-dark">${r.status || '-'}</span></td>
+             <td><span class="badge ${badge} rounded-pill">${r.classname}</span></td>
+           </tr>`;
+      });
+      document.querySelector('#dashboardTable tbody').innerHTML = html;
+      dataTable = $('#dashboardTable').DataTable({ language: { search: "ค้นหา:", lengthMenu: "แสดง _MENU_ รายการ" }, order: [[0, 'desc']] });
+    }
+
+    // --- Statistics ---
+    let myWeeklyChart = null;
+    async function loadStats() {
+      const data = await callAPI({ action: 'stats' });
+      if(myWeeklyChart) myWeeklyChart.destroy();
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      myWeeklyChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+              labels: ['ครั้งที่ 1', 'ครั้งที่ 2', 'ครั้งที่ 3', 'ครั้งที่ 4', 'ครั้งที่ 5', 'ครั้งที่ 6', 'ครั้งที่ 7', 'ครั้งที่ 8', 'ครั้งที่ 9', 'ครั้งที่ 10', 'ครั้งที่ 11', 'ครั้งที่ 12'],
+              datasets: [
+                { label: 'เข้าใจชีวิตใหม่', data: data['เข้าใจชีวิตใหม่'], borderColor: '#28a745', tension: 0.3 },
+                { label: 'พื้นฐานชีวิต', data: data['หลักพื้นฐานชีวิตคริสเตียน'], borderColor: '#007bff', tension: 0.3 },
+                { label: 'กษัตริย์ดาวิด', data: data['บทเรียนชีวิตกษัตริย์ดาวิด'], borderColor: '#ffc107', tension: 0.3 },
+                { label: 'บทเรียนเซลล์', data: data['บทเรียนเซลล์'], borderColor: '#dc3545', tension: 0.3 }
+              ]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    }
+  </script>
+</body>
+</html>
