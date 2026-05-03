@@ -100,15 +100,14 @@
             <div class="col-md-4">
                 <label class="small text-muted">2. ครั้งที่ (สัปดาห์ปัจจุบัน)</label>
                 <!-- ปิดการแก้ไข (disabled) เพราะจะดึงค่าอัตโนมัติ -->
-                <select class="form-select bg-white" id="checkin-week" disabled>
-                  <option value="" disabled selected>กำลังคำนวณ...</option>
-                  <script>for(let i=1; i<=20; i++) document.write(`<option value="${i}">ครั้งที่ ${i}</option>`);</script>
+                <select class="form-select bg-white text-primary fw-bold" id="checkin-week" disabled>
+                  <!-- JavaScript จะเติมตัวเลือกครั้งที่ให้ตรงนี้ -->
                 </select>
             </div>
             <div class="col-md-4">
                 <label class="small text-muted">3. วันที่</label>
                 <!-- ปิดการแก้ไขวันที่ เพื่อให้ใช้วันปัจจุบันเสมอ -->
-                <input type="date" class="form-control bg-white" id="checkin-date" readonly>
+                <input type="date" class="form-control bg-light" id="checkin-date" readonly>
             </div>
           </div>
 
@@ -162,9 +161,9 @@
 
   <script>
     // ==========================================
-    // ⚠️ นำ URL ใหม่ (หลังจากแก้ Code.gs แล้ว) มาใส่ตรงนี้ครับ
+    // ลิงก์ API เดิมของคุณ (ใช้งานได้แล้ว)
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbydpX-ElZxS1gzjaLOJ2FAtwNm2HSOhhl9R1BUJgP5t-IwNp4I37akhLhI0LkzyPGrm/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4n7OCJmVxJNpA54zuePnnG4ct45Z0YnGaLJJGJzgHpa5Pv5wS9od5QR53sgu7Tstm/exec"; 
     
     const unitOptions = `
       <option value="" disabled selected>-- เลือกหน่วย --</option>
@@ -200,14 +199,40 @@
       <option value="Unity 2">Unity 2</option>
     `;
 
-    // --- เริ่มต้นการทำงาน ---
-    window.addEventListener('load', async function() {
+    // --- ฟังก์ชันทำงานตอนโหลดเว็บ ---
+    window.addEventListener('load', function() {
         const dateEl = document.getElementById('checkin-date');
         if(dateEl) dateEl.valueAsDate = new Date();
         addStudentField();
+
+        // ----------------------------------------------------
+        // คำนวณครั้งที่เรียน (สัปดาห์ปัจจุบัน) อัตโนมัติในหน้าเว็บ
+        // ----------------------------------------------------
+        const startDate = new Date("2026-02-01T00:00:00"); // วันแรกของการเรียน
+        const today = new Date();
         
-        // โหลดสัปดาห์ปัจจุบันจากเซิร์ฟเวอร์
-        await fetchCurrentWeek();
+        // หาความต่างของเวลาและแปลงเป็นวัน
+        const diffTime = today.getTime() - startDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        let currentWeek = Math.floor(diffDays / 7) + 1;
+        
+        // บังคับไม่ให้ต่ำกว่า 1 หรือเกิน 20
+        if (currentWeek < 1) currentWeek = 1;
+        if (currentWeek > 20) currentWeek = 20;
+
+        // นำค่าที่ได้ไปใส่ใน Dropdown
+        const weekSelect = document.getElementById('checkin-week');
+        if(weekSelect) {
+            let weekHtml = '';
+            for(let i=1; i<=20; i++) {
+                if(i === currentWeek) {
+                    weekHtml += `<option value="${i}" selected>ครั้งที่ ${i} (ปัจจุบัน)</option>`;
+                } else {
+                    weekHtml += `<option value="${i}">ครั้งที่ ${i}</option>`;
+                }
+            }
+            weekSelect.innerHTML = weekHtml;
+        }
     });
 
     async function callAPI(payload) {
@@ -227,22 +252,6 @@
         throw error;
       }
     }
-
-    // ฟังก์ชันดึงสัปดาห์ปัจจุบัน
-    async function fetchCurrentWeek() {
-        try {
-            const currentWeek = await callAPI({ action: 'getCurrentWeek' });
-            const weekSelect = document.getElementById('checkin-week');
-            if (weekSelect && currentWeek) {
-                weekSelect.value = currentWeek;
-            }
-        } catch (e) {
-            console.error("ไม่สามารถดึงสัปดาห์ปัจจุบันได้", e);
-            // fallback เผื่อดึงไม่ได้
-            document.getElementById('checkin-week').removeAttribute('disabled');
-        }
-    }
-
 
     function addStudentField() {
       let html = `
@@ -307,10 +316,6 @@
       let classname = document.getElementById('checkin-class').value;
       if(!classname) return;
       let week = document.getElementById('checkin-week').value;
-      if(!week) {
-          Swal.fire('กำลังโหลด', 'กรุณารอสักครู่ ระบบกำลังคำนวณสัปดาห์ปัจจุบัน', 'info');
-          return;
-      }
 
       const students = await callAPI({ action: 'getStudents', classname: classname });
       
@@ -427,7 +432,6 @@
       if(myWeeklyChart) myWeeklyChart.destroy();
       const ctx = document.getElementById('weeklyChart').getContext('2d');
       
-      // สร้าง label กราฟ 20 ครั้ง
       const labels = [];
       for(let i=1; i<=20; i++) labels.push(`ครั้งที่ ${i}`);
 
